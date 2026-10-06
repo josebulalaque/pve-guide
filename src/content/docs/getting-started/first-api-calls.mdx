@@ -8,6 +8,8 @@ sidebar:
     variant: note
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 :::note[In a nutshell]
 a copy-paste walkthrough that checks the connection, clones a VM from a template, configures it with cloud-init, starts it, waits for it and cleans up. Every step shows **curl** and **Python** ([proxmoxer](https://pypi.org/project/proxmoxer/)).
 :::
@@ -23,11 +25,17 @@ a copy-paste walkthrough that checks the connection, clones a VM from a template
 
 The examples use node `pve1` and template `9000`. Set these once:
 
+<Tabs syncKey="client">
+<TabItem label="curl">
+
 ```bash
 PVE=https://pve1.example.com:8006/api2/json
 AUTH='Authorization: PVEAPIToken=appuser@pve!provisioner=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
 NODE=pve1
 ```
+
+</TabItem>
+<TabItem label="Python">
 
 ```python
 from proxmoxer import ProxmoxAPI
@@ -37,43 +45,73 @@ pve = ProxmoxAPI("pve1.example.com", user="appuser@pve", token_name="provisioner
 node = "pve1"
 ```
 
+</TabItem>
+</Tabs>
+
 ## Step 1: Check the connection
+
+<Tabs syncKey="client">
+<TabItem label="curl">
 
 ```bash
 curl -s -H "$AUTH" "$PVE/version"
 curl -s -H "$AUTH" "$PVE/nodes"
 ```
 
+</TabItem>
+<TabItem label="Python">
+
 ```python
 print(pve.version.get())
 print([n["node"] for n in pve.nodes.get()])
 ```
+
+</TabItem>
+</Tabs>
 
 - **Certificate error?** Your client doesn't trust the node's certificate (see [2.4 API Basics](../api-basics/)).
 - **401?** Check the token header: `user@realm!tokenid=secret`.
 
 ## Step 2: Pick a VMID
 
+<Tabs syncKey="client">
+<TabItem label="curl">
+
 ```bash
 VMID=$(curl -s -H "$AUTH" "$PVE/cluster/nextid" | jq -r .data)
 ```
+
+</TabItem>
+<TabItem label="Python">
 
 ```python
 vmid = int(pve.cluster.nextid.get())
 ```
 
+</TabItem>
+</Tabs>
+
 `nextid` only **suggests** a free ID. It doesn't reserve it, so two requests at the same moment can get the same number. If the clone in step 3 fails with *already exists*, ask for a new ID and try again (see [4.7 Errors & Gotchas](../../reference/errors-gotchas/)).
 
 ## Step 3: Clone the template
+
+<Tabs syncKey="client">
+<TabItem label="curl">
 
 ```bash
 UPID=$(curl -s -H "$AUTH" -X POST "$PVE/nodes/$NODE/qemu/9000/clone" \
   -d newid=$VMID -d name=web01 | jq -r .data)
 ```
 
+</TabItem>
+<TabItem label="Python">
+
 ```python
 upid = pve.nodes(node).qemu(9000).clone.post(newid=vmid, name="web01")
 ```
+
+</TabItem>
+</Tabs>
 
 - Cloning a **template** makes a **linked clone** by default: fast and small. Add `full=1` for an independent copy.
 - Other useful options: `target` (another node, if the storage is shared), `storage` (for full clones) and `pool`.
@@ -81,6 +119,9 @@ upid = pve.nodes(node).qemu(9000).clone.post(newid=vmid, name="web01")
 ## Step 4: Wait for the task
 
 The clone runs in the background. Ask about the task until it stops, then check `exitstatus`:
+
+<Tabs syncKey="client">
+<TabItem label="curl">
 
 ```bash
 wait_task() {   # usage: wait_task <UPID>
@@ -94,6 +135,9 @@ wait_task() {   # usage: wait_task <UPID>
 }
 wait_task "$UPID"
 ```
+
+</TabItem>
+<TabItem label="Python">
 
 ```python
 import time
@@ -114,11 +158,17 @@ def wait_task(upid, timeout=600):
 wait_task(upid)
 ```
 
+</TabItem>
+</Tabs>
+
 More on tasks: [4.2 Async Tasks & UPIDs](../../reference/tasks-upids/).
 
 ## Step 5: Configure it
 
 Set the size and cloud-init details. `PUT …/config` applies the change straight away and returns nothing:
+
+<Tabs syncKey="client">
+<TabItem label="curl">
 
 ```bash
 KEY=$(python3 -c 'import urllib.parse; print(urllib.parse.quote(open("id_ed25519.pub").read().strip(), safe=""))')
@@ -127,6 +177,9 @@ curl -s -H "$AUTH" -X PUT "$PVE/nodes/$NODE/qemu/$VMID/config" \
   --data-urlencode "sshkeys=$KEY" \
   --data-urlencode "ipconfig0=ip=10.0.10.21/24,gw=10.0.10.1"
 ```
+
+</TabItem>
+<TabItem label="Python">
 
 ```python
 from urllib.parse import quote
@@ -139,11 +192,17 @@ pve.nodes(node).qemu(vmid).config.put(
 )
 ```
 
+</TabItem>
+</Tabs>
+
 :::caution
 `sshkeys` must be **URL-encoded** inside the value. The curl example encodes it twice on purpose: once for the key, once for the form. This is the most common cloud-init mistake.
 :::
 
 ## Step 6: Start it and check
+
+<Tabs syncKey="client">
+<TabItem label="curl">
 
 ```bash
 UPID=$(curl -s -H "$AUTH" -X POST "$PVE/nodes/$NODE/qemu/$VMID/status/start" | jq -r .data)
@@ -151,6 +210,9 @@ wait_task "$UPID"
 curl -s -H "$AUTH" "$PVE/nodes/$NODE/qemu/$VMID/status/current" | jq -r .data.status    # running
 curl -s -H "$AUTH" "$PVE/nodes/$NODE/qemu/$VMID/agent/network-get-interfaces"
 ```
+
+</TabItem>
+<TabItem label="Python">
 
 ```python
 wait_task(pve.nodes(node).qemu(vmid).status.start.post())
@@ -161,19 +223,31 @@ for nic in pve.nodes(node).qemu(vmid).agent("network-get-interfaces").get()["res
     print(nic["name"], [a["ip-address"] for a in nic.get("ip-addresses", [])])
 ```
 
+</TabItem>
+</Tabs>
+
 The guest agent must be installed in the template and enabled on the VM. Otherwise the last call fails.
 
 ## Step 7: Clean up
+
+<Tabs syncKey="client">
+<TabItem label="curl">
 
 ```bash
 wait_task "$(curl -s -H "$AUTH" -X POST "$PVE/nodes/$NODE/qemu/$VMID/status/stop" | jq -r .data)"
 wait_task "$(curl -s -H "$AUTH" -X DELETE "$PVE/nodes/$NODE/qemu/$VMID?purge=1&destroy-unreferenced-disks=1" | jq -r .data)"
 ```
 
+</TabItem>
+<TabItem label="Python">
+
 ```python
 wait_task(pve.nodes(node).qemu(vmid).status.stop.post())
 wait_task(pve.nodes(node).qemu(vmid).delete(purge=1, **{"destroy-unreferenced-disks": 1}))
 ```
+
+</TabItem>
+</Tabs>
 
 `purge=1` also removes the VM from backup jobs and HA.
 

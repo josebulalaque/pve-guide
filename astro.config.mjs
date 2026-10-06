@@ -12,6 +12,8 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'Proxmox Guide',
+			logo: { src: './src/assets/logo.svg' },
+			customCss: ['./src/styles/custom.css'],
 			description:
 				'A plain-English guide to Proxmox VE for developers building custom apps and the people who run the platform.',
 			social: [{ icon: 'github', label: 'GitHub', href: repo }],

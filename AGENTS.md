@@ -24,6 +24,8 @@ astro dev --background   # preview; manage with `astro dev stop|status|logs`
 - Page pattern: `:::note[In a nutshell]` first, a diagram for each major concept, short sections, a **Web UI / CLI / API** quick-reference table on how-to pages, then Gotchas. Callouts: `:::note`, `:::tip`, `:::caution`.
 - Links between pages are **relative** (`../ceph/`, `../../reference/services/`) because of the `/pve-guide/` base path. Absolute `/…` links break on GitHub Pages.
 - Diagrams are generated: edit `tools/diagrams.cjs` (shared `box`/`arrow`/`text` helpers, fixed palette: green = custom app, orange = Proxmox, blue = VMs, purple = hypervisor), run `npm run diagrams`, and check the result visually. Reference them as `![alt text](../../../assets/diagrams/<name>.svg)` with meaningful alt text.
+- curl / Python examples use Starlight tabs: `<Tabs syncKey="client">` with `<TabItem label="curl">` and `<TabItem label="Python">`. Tabs need the page to be `.mdx` (see `getting-started/first-api-calls.mdx`). In MDX, keep `{`, `}` and `<` inside code.
+- Look: Starlight's default accent colours. The logo (`src/assets/logo.svg`, also `public/favicon.svg`) and the home-page hero (`src/assets/hero.svg`) are original SVGs. Don't use the Proxmox logo (trademark). `src/styles/custom.css` adds the home-page glow only.
 - Facts: commands, endpoints and privileges were checked against the official Proxmox VE 9 docs and API schema (`https://pve.proxmox.com/pve-docs/api-viewer/apidoc.js`). Verify new ones the same way instead of writing from memory.
 
 ## Git

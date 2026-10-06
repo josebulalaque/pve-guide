@@ -1,0 +1,20 @@
+/* Home page (splash) only: a soft accent glow behind the hero, like starlight.astro.build. */
+[data-has-hero] .page {
+	background:
+		radial-gradient(ellipse 60% 50% at 75% 18%, color-mix(in srgb, var(--sl-color-accent) 22%, transparent), transparent 70%),
+		radial-gradient(ellipse 50% 40% at 15% 0%, color-mix(in srgb, var(--sl-color-accent) 12%, transparent), transparent 70%),
+		var(--sl-color-black);
+}
+
+/* Let the glow show through the header on the home page. */
+[data-has-hero] header.header {
+	background-color: transparent;
+	border-bottom-color: transparent;
+	-webkit-backdrop-filter: blur(12px);
+	backdrop-filter: blur(12px);
+}
+
+/* Give the hero illustration a little more presence. */
+[data-has-hero] .hero > img {
+	filter: drop-shadow(0 1.5rem 3rem color-mix(in srgb, var(--sl-color-accent) 35%, transparent));
+}
