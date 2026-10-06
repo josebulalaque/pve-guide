@@ -18,6 +18,7 @@ export default defineConfig({
 				'A plain-English guide to Proxmox VE for developers building custom apps and the people who run the platform.',
 			social: [{ icon: 'github', label: 'GitHub', href: repo }],
 			editLink: { baseUrl: `${repo}/edit/main/` },
+			lastUpdated: true,
 			sidebar: [
 				{ label: '1. Introduction', items: [{ autogenerate: { directory: 'introduction' } }] },
 				{ label: '2. Getting Started', items: [{ autogenerate: { directory: 'getting-started' } }] },
