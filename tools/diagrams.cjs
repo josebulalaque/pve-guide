@@ -6,7 +6,7 @@ const path = require('path');
 const OUT = path.join(__dirname, '..', 'src', 'assets', 'diagrams');
 fs.mkdirSync(OUT, { recursive: true });
 
-const FONT = 'Liberation Sans';
+const FONT = 'Liberation Sans, Arial, Helvetica, sans-serif';
 const C = {
   hw:    { f: '#F3F4F6', s: '#6B7280' },
   os:    { f: '#DBEAFE', s: '#2563EB' },
@@ -26,7 +26,10 @@ const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(
 function text(x, y, s, o = {}) {
   const { size = 14, bold = false, anchor = 'middle', fill = INK, italic = false, halo = false } = o;
   const h = halo ? ` stroke="#FFFFFF" stroke-width="5" paint-order="stroke" stroke-linejoin="round"` : '';
-  return `<text x="${x}" y="${y}" font-family="${FONT}" font-size="${size}" font-weight="${bold ? 700 : 400}"${italic ? ' font-style="italic"' : ''} text-anchor="${anchor}" fill="${fill}"${h}>${esc(s)}</text>`;
+  // Diagrams are drawn ~860px wide but shown at ~630px, so small labels get one size step
+  // bigger to stay readable on the page.
+  const px = size <= 11 ? size + 2 : size === 12 ? 13 : size;
+  return `<text x="${x}" y="${y}" font-family="${FONT}" font-size="${px}" font-weight="${bold ? 700 : 400}"${italic ? ' font-style="italic"' : ''} text-anchor="${anchor}" fill="${fill}"${h}>${esc(s)}</text>`;
 }
 
 // Box with centred lines of text. First line bold unless o.plain.
@@ -49,13 +52,35 @@ function arrow(x1, y1, x2, y2, o = {}) {
   return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}"${dash ? ' stroke-dasharray="6 4"' : ''} marker-end="url(#ah)"${both ? ' marker-start="url(#ahs)"' : ''}/>`;
 }
 
+// Dark mode: every colour in the palette has a dark-theme counterpart. The diagrams use
+// presentation attributes (fill="#…"), which CSS overrides, so one stylesheet re-themes them
+// all. It follows the reader's colour scheme (prefers-color-scheme), like the site's "Auto" mode.
+const DARK_FILL = {
+  '#F3F4F6': '#262a33', '#DBEAFE': '#172554', '#EDE9FE': '#2e1065', '#FFEDD5': '#431407',
+  '#DCFCE7': '#052e16', '#E0F2FE': '#082f49', '#FEF3C7': '#422006', '#FEE2E2': '#450a0a',
+  '#FAFAFA': '#1b1d24', '#F9FAFB': '#23262f',
+};
+const DARK_LINE = {   // outline colours; also used as text colours
+  '#6B7280': '#9ca3af', '#2563EB': '#60a5fa', '#7C3AED': '#a78bfa', '#EA580C': '#fb923c',
+  '#16A34A': '#4ade80', '#0284C7': '#38bdf8', '#D97706': '#fbbf24', '#DC2626': '#f87171',
+  '#9CA3AF': '#6b7280', '#E5E7EB': '#374151', '#D1D5DB': '#4b5563',
+};
+const DARK_CSS = [
+  ...Object.entries(DARK_FILL).map(([l, d]) => `[fill="${l}"]{fill:${d}}`),
+  ...Object.entries(DARK_LINE).map(([l, d]) => `[stroke="${l}"]{stroke:${d}}`),
+  ...Object.entries(DARK_LINE).filter(([l]) => !['#9CA3AF', '#E5E7EB', '#D1D5DB'].includes(l))
+    .map(([l, d]) => `:not(circle)[fill="${l}"]{fill:${d}}`),
+  `text[fill="${INK}"]{fill:#e5e7eb}`, `[fill="${MUTED}"]{fill:#9ca3af}`,
+  'rect[fill="#FFFFFF"]{fill:#23262f}', 'text[stroke="#FFFFFF"]{stroke:#17181c}',
+].join('');
+
 function svg(name, w, h, body) {
   const s = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+<style>@media (prefers-color-scheme: dark){${DARK_CSS}}</style>
 <defs>
 <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="${MUTED}"/></marker>
 <marker id="ahs" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="${MUTED}"/></marker>
 </defs>
-<rect width="100%" height="100%" fill="#FFFFFF"/>
 ${body}
 </svg>`;
   fs.writeFileSync(path.join(OUT, name + '.svg'), s);
@@ -372,13 +397,13 @@ const lbl = (x, y, s, o = {}) => text(x, y, s, { size: 12, fill: MUTED, halo: tr
   b += box(270, 260, 150, 55, C.pve, ['Template', 'read-only master'], { sub: 11 });
   b += arrow(180, 160, 268, 160);
   b += arrow(420, 148, 508, 148) + lbl(464, 140, 'start');
-  b += arrow(510, 174, 422, 174) + lbl(466, 192, 'shutdown / stop');
+  b += arrow(510, 174, 422, 174) + lbl(466, 208, 'shutdown / stop');
   b += arrow(660, 148, 718, 148) + lbl(689, 140, 'suspend');
-  b += arrow(720, 174, 662, 174) + lbl(691, 192, 'resume');
+  b += arrow(720, 174, 662, 174) + lbl(691, 208, 'resume');
   b += arrow(345, 130, 345, 72) + lbl(352, 106, 'delete', { anchor: 'start' });
   b += arrow(345, 190, 345, 258) + lbl(352, 228, 'convert (one-way)', { anchor: 'start' });
   b += arrow(270, 288, 120, 192) + lbl(188, 232, 'clone', { anchor: 'end' });
-  b += lbl(585, 220, 'reboot / reset: stays running');
+  b += lbl(585, 236, 'reboot / reset: stays running');
   svg('31-vm-lifecycle', 860, 330, b);
 }
 
@@ -652,7 +677,7 @@ const lbl = (x, y, s, o = {}) => text(x, y, s, { size: 12, fill: MUTED, halo: tr
   b += lbl(452, 18, 'running: wait 1–2 s, then ask again');
   b += box(700, 30, 145, 56, C.app, ['exitstatus = OK', 'success'], { size: 13, sub: 11 });
   b += box(700, 108, 145, 60, C.bad, ['anything else', 'failed: read …/log'], { size: 13, sub: 11 });
-  b += arrow(642, 80, 697, 58) + lbl(668, 60, 'stopped');
+  b += arrow(642, 80, 697, 58) + lbl(662, 52, 'stopped');
   b += arrow(642, 112, 697, 138);
   b += text(430, 200, 'A reply to the first call only means "the task started". Only exitstatus tells you the result.', { size: 13, bold: true });
   b += text(430, 222, 'Always set an overall timeout, and never resend the original action just because polling failed.', { size: 13, fill: MUTED });
@@ -740,14 +765,14 @@ const lbl = (x, y, s, o = {}) => text(x, y, s, { size: 12, fill: MUTED, halo: tr
   b += box(330, 10, 200, 44, C.bad, ['API call failed'], { size: 14 });
   const br = [
     [20, '401', 'Bad or expired login', 'token typo, ticket > 2 h old'],
-    [235, '403', 'Missing privilege', 'error names path + privilege'],
-    [450, '500 / 595 / 596', 'Proxmox or node problem', 'quorum, lock, node unreachable'],
-    [665, 'Task error', 'Started, then failed', 'read the task log'],
+    [230, '403', 'Missing privilege', 'error names path + privilege'],
+    [440, '500 / 595 / 596', 'Proxmox or node problem', 'quorum, lock, node unreachable'],
+    [650, 'Task error', 'Started, then failed', 'read the task log'],
   ];
   br.forEach(([x, code, t, s]) => {
-    b += arrow(430, 54, x + 87, 92);
-    b += box(x, 95, 175, 34, C.white, [code], { size: 14 });
-    b += box(x, 140, 175, 64, C.os, [t, s], { size: 13, sub: 11 });
+    b += arrow(430, 54, x + 97, 92);
+    b += box(x, 95, 195, 34, C.white, [code], { size: 14 });
+    b += box(x, 140, 195, 64, C.os, [t, s], { size: 13, sub: 11 });
   });
   b += text(430, 232, 'Then check: task log → node system log (pvedaemon, pveproxy) → cluster and Ceph health', { size: 13, bold: true });
   svg('48-troubleshooting', 860, 250, b);
